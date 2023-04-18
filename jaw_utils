@@ -154,6 +154,7 @@ def build():
     createInitialValues('lower')
     connectSeal('upper')
     connectSeal('lower')
+    createJawPin()
 
 
 def createHierarchy():
@@ -652,3 +653,59 @@ def connectSeal(part):
         mc.connectAttr('{}.outValue'.format(clamp), '{}.{}'.format(seal_driver, index_name))
 
         mc.connectAttr('{}.{}'.format(seal_driver, index_name), const_target)
+
+def createJawPin():
+    '''
+
+    :param part:
+    :return:
+    '''
+
+    pin_driver = mc.createNode('lightInfo', name='{}_pin_DRV'.format(CENTER))
+    jaw_attr = 'jaw_attributes'
+
+    for side in 'LR':
+
+        mc.addAttr(jaw_attr, at='bool', ln='{}_auto_corner_pin'.format(side))
+        mc.addAttr(jaw_attr, at='double', ln='{}_corner_pin'.format(side), min = -10, max=10, dv=0)
+        mc.addAttr(jaw_attr, at='double', ln='{}_input_ty'.format(side), min = -10, max=10, dv=0)
+
+        # create clamp and connect the input_ty to it
+        clamp = mc.createNode('clamp', name='{}_corner_pin_auto_CLAMP'.format(side))
+        mc.setAttr('{}.minR'.format(clamp), -10)
+        mc.setAttr('{}.maxR'.format(clamp), 10)
+
+        mc.connectAttr('{}.{}_input_ty'.format(jaw_attr, side), '{}.inputR'.format(clamp))
+
+        # create condition for the two possible scenarios
+        cnd = mc.createNode('condition', name='{}_corner_pin_auto_CND'.format(side))
+        mc.setAttr('{}.operation'.format(cnd), 0)
+        mc.setAttr('{}.secondTerm'.format(cnd), 1)
+
+        mc.connectAttr('{}.{}_auto_corner_pin'.format(jaw_attr, side), '{}.firstTerm'.format(cnd))
+        mc.connectAttr('{}.outputR'.format(clamp), '{}.colorIfTrueR'.format(cnd))
+        mc.connectAttr('{}.{}_corner_pin'.format(jaw_attr, side), '{}.colorIfFalseR'.format(cnd))
+
+        # create addition
+        plus = mc.createNode('plusMinusAverage', name = '{}_corner_pin_PLUS'.format(side))
+        mc.setAttr('{}.input1D[1]'.format(plus),10)
+        mc.connectAttr('{}.outColorR'.format(cnd), '{}.input1D[0]'.format(plus))
+
+        # create division
+        div = mc.createNode('multDoubleLinear', name = '{}_corner_pin_DIV'.format(side))
+        mc.setAttr('{}.input2'.format(div), 0.05)
+        mc.connectAttr('{}.output1D'.format(plus), '{}.input1'.format(div))
+
+        # add final output attributes to the driver node
+        mc.addAttr(pin_driver, at='double', ln='{}_pin'.format(side), min=0, max=1, dv=0)
+        mc.connectAttr('{}.output'.format(div), '{}.{}_pin'.format(pin_driver, side))
+
+        # connect driver to broad joint constraint targets
+        const_pin_up = '{}_jaw_broadCorner_JNT_OFF_parentConstraint1.C_jaw_broadUpper_JNT_OFFW0'.format(side)
+        const_pin_down = '{}_jaw_broadCorner_JNT_OFF_parentConstraint1.C_jaw_broadLower_JNT_OFFW1'.format(side)
+
+        mc.connectAttr('{}.{}_pin'.format(pin_driver, side), const_pin_up)
+
+        rev = mc.createNode('reverse', name = '{}_corner_pin_REV'.format(side))
+        mc.connectAttr('{}.{}_pin'.format(pin_driver, side), '{}.inputX'.format(rev))
+        mc.connectAttr('{}.outputX'.format(rev), const_pin_down)
