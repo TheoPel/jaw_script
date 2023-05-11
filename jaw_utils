@@ -1,20 +1,8 @@
-import maya.cmds as mc
-
-import sys
-#modify the path if needed
-path = 'C:\Users\theo\Documents\maya\scripts'
-
-for module_name in sys.modules.keys():
-    top_module = module_name.split('.')[0]
-    if top_module == 'jaw_utils':
-        del(sys.modules[module_name])
-        
-if path not in sys.path:
-    sys.path.append(path)
-    
-import jaw_utils
-
 # import the script with the previous code 
+import jaw_utils
+import importlib
+importlib.reload (jaw_utils)
+
 # create the guides and place them on the jaw
 jaw_utils.createGuides()
 
@@ -25,7 +13,7 @@ jaw_utils.build()
 
 
 
-# Name this script jaw_utils and place it into Documents\maya\scripts
+# Name this script jaw_utils and place it into Documents\maya\202*\scripts
 
 import maya.cmds as mc
 
